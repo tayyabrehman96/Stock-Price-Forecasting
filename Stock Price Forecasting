@@ -1,0 +1,78 @@
+import pandas as pd  
+import numpy as np  
+import matplotlib.pyplot as plt  
+import yfinance as yf  
+from statsmodels.tsa.arima.model import ARIMA  
+from sklearn.metrics import mean_squared_error  
+
+
+print("Downloading stock data...")
+stock_data = yf.download('AAPL', start='2023-01-01', end='2024-10-01')
+
+print("\nSample Data:")
+print(stock_data.head())
+
+
+plt.figure(figsize=(10, 5))
+plt.plot(stock_data['Close'], label='AAPL Close Price', color='blue')
+plt.title('AAPL Stock Closing Prices (Jan 2023 - Oct 2024)')
+plt.xlabel('Date')
+plt.ylabel('Price (USD)')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+stock_data['Log_Close'] = np.log(stock_data['Close'])
+log_close = stock_data['Log_Close']
+
+
+train_size = int(len(log_close) * 0.8)
+train, test = log_close[:train_size], log_close[train_size:]
+
+print("\nTraining Data Length:", len(train))
+print("Testing Data Length:", len(test))
+
+
+print("\nTraining ARIMA Model...")
+model = ARIMA(train, order=(5, 1, 0))  
+arima_model = model.fit()
+
+print("\nARIMA Model Summary:")
+print(arima_model.summary())
+
+forecast = arima_model.forecast(steps=len(test))  
+
+mse = mean_squared_error(test, forecast)
+print(f"\nMean Squared Error (MSE) on Test Data: {mse:.4f}")
+
+plt.figure(figsize=(10, 5))
+plt.plot(test.index, test, label='Actual Prices', color='blue')
+plt.plot(test.index, forecast, label='Forecasted Prices', color='red')
+plt.title('ARIMA Forecast vs Actual Prices')
+plt.xlabel('Date')
+plt.ylabel('Log Price (USD)')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+future_steps = 10  # Forecast for the next 10 days
+future_forecast = arima_model.forecast(steps=future_steps)
+
+print("\nFuture Forecast (Log Prices):")
+print(future_forecast)
+
+future_prices = np.exp(future_forecast)
+
+print("\nFuture Forecast (Actual Prices in USD):")
+print(future_prices)
+
+future_dates = pd.date_range(start=test.index[-1] + pd.Timedelta(days=1), periods=future_steps)
+
+plt.figure(figsize=(10, 5))
+plt.plot(future_dates, future_prices, label='Forecasted Future Prices', marker='o', color='green')
+plt.title('Forecasted Stock Prices for the Next 10 Days')
+plt.xlabel('Date')
+plt.ylabel('Price (USD)')
+plt.legend()
+plt.grid(True)
+plt.show()
